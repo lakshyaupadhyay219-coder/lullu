@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSTReco Pro - Complete GST Reconciliation & ECL Management</title>
+
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- SheetJS & ExcelJS -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
+  <style>
+    .glass-card { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(8px); }
+    .tab-active { border-color: #4f46e5; color: #4f46e5; background-color: #eef2ff; font-weight: 600; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen font-sans flex flex-col">
+
+  <!-- ================= AUTHENTICATION MODAL ================= -->
+  <div id="authView" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="glass-card w-full max-w-md p-8 rounded-2xl border border-slate-200 shadow-2xl">
+      <div class="text-center mb-6">
+        <div class="inline-flex p-3 rounded-2xl bg-indigo-600 text-white mb-3 shadow-lg shadow-indigo-500/30">
+          <i class="fa-solid fa-calculator-simple text-3xl"></i>
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">GSTReco Pro</h1>
+        <p class="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">GST Reconciliation Management System</p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Entity GSTIN (User ID)</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <i class="fa-solid fa-id-card"></i>
+            </span>
+            <input type="text" id="loginGstin" value="06AALCV4347B1ZE" placeholder="15-digit GSTIN"
+              class="w-full pl-10 pr-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 uppercase font-mono">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Password</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <i class="fa-solid fa-lock"></i>
+            </span>
+            <input type="password" id="loginPassword" value="Lakshya@123" placeholder="••••••••"
+              class="w-full pl-10 pr-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <div id="authAlert" class="hidden text-xs text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-200"></div>
+
+        <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-sm shadow transition">
+          Log In
+        </button>
+
+        <div class="pt-3 border-t border-slate-100 flex justify-between text-xs text-indigo-600">
+          <button onclick="toggleRegisterModal(true)" class="hover:underline">Register New GSTIN</button>
+          <button onclick="togglePasswordModal(true)" class="hover:underline">Change Password</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TOP NAVIGATION BAR ================= -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-indigo-600 text-white rounded-lg shadow">
+          <i class="fa-solid fa-file-invoice text-lg"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="font-bold text-base text-slate-900">GSTReco Pro</h1>
+            <span class="bg-indigo-100 text-indigo-800 text-[10px] font-semibold px-2 py-0.5 rounded-full">CA Edition</span>
+          </div>
+          <p class="text-xs text-slate-500">2B vs Books vs ECL Reconciliation Engine</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+        <label for="activeMonthSelect" class="text-xs font-semibold text-slate-600"><i class="fa-regular fa-calendar mr-1"></i> Period:</label>
+        <select id="activeMonthSelect" onchange="changeActiveMonth(this.value)" class="text-xs font-semibold bg-white border border-slate-300 rounded px-2 py-1 focus:ring-1 focus:ring-indigo-500">
+          <option value="2026-08" selected>Aug-2026</option>
+          <option value="2026-09">Sep-2026</option>
+          <option value="2026-10">Oct-2026</option>
+        </select>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <div class="text-right">
+          <span class="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded border border-slate-200" id="currentGstinBadge">06AALCV4347B1ZE</span>
+          <div class="text-[10px] text-emerald-600 font-medium flex items-center justify-end mt-0.5">
+            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1 animate-pulse"></span> Entity Active
+          </div>
+        </div>
+        <button onclick="handleLogout()" class="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition" title="Logout">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="bg-slate-50 border-t border-slate-200 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-7xl mx-auto flex space-x-1 overflow-x-auto py-1 text-xs font-medium text-slate-600">
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="px-3 py-2 rounded-md hover:bg-slate-200 transition tab-active"><i class="fa-solid fa-chart-pie mr-1.5"></i> Dashboard</button>
+        <button onclick="switchTab('monthMgmt')" id="nav-monthMgmt" class="px-3 py-2 rounded-md hover:bg-slate-200 transition"><i class="fa-solid fa-folder-tree mr-1.5"></i> Month Management</button>
+        <button onclick="switchTab('matched')" id="nav-matched" class="px-3 py-2 rounded-md hover:bg-slate-200 transition"><i class="fa-solid fa-circle-check text-emerald-600 mr-1.5"></i> Matched Invoices</button>
+        <button onclick="switchTab('booksNot2B')" id="nav-booksNot2B" class="px-3 py-2 rounded-md hover:bg-slate-200 transition"><i class="fa-solid fa-circle-exclamation text-amber-500 mr-1.5"></i> Books Not in 2B (Ineligible)</button>
+        <button onclick="switchTab('twoBNotBooks')" id="nav-twoBNotBooks" class="px-3 py-2 rounded-md hover:bg-slate-200 transition"><i class="fa-solid fa-circle-question text-blue-500 mr-1.5"></i> 2B Not in Books</button>
+        <button onclick="switchTab('taxDiff')" id="nav-taxDiff" class="px-3 py-2 rounded-md hover:bg-slate-200 transition"><i class="fa-solid fa-scale-unbalanced text-rose-500 mr-1.5"></i> Tax Difference</button>
+        <button onclick="switchTab('cdnRegister')" id="nav-cdnRegister" class="px-3 py-2 rounded-md hover:bg-slate-200 transition"><i class="fa-solid fa-receipt mr-1.5"></i> CDN Register</button>
+        <button onclick="switchTab('eclRegister')" id="nav-eclRegister" class="px-3 py-2 rounded-md hover:bg-slate-200 transition"><i class="fa-solid fa-landmark mr-1.5"></i> ECL Register</button>
+        <button onclick="switchTab('auditLog')" id="nav-auditLog" class="px-3 py-2 rounded-md hover:bg-slate-200 transition"><i class="fa-solid fa-clock-rotate-left mr-1.5"></i> Audit Log</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Banner -->
+  <div id="statusNotification" class="hidden max-w-7xl mx-auto px-4 mt-4 w-full">
+    <div id="statusNotificationContent" class="p-3 rounded-lg text-xs font-semibold flex items-center justify-between shadow-sm"></div>
+  </div>
+
+  <!-- ================= MAIN DASHBOARD ================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- TAB 1: DASHBOARD -->
+    <div id="tab-dashboard" class="tab-pane space-y-6">
+      <!-- File Upload Blocks -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Zoho Books -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-indigo-700 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-book mr-1.5"></i> 1. Books (Zoho)</span>
+              <span id="badgeBooksCount" class="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-mono font-semibold">0 docs</span>
+            </div>
+            <p class="text-xs text-slate-500 mb-3">Upload your Zoho Books Purchase/Inward Register</p>
+          </div>
+          <div>
+            <input type="file" id="booksFileInput" accept=".xlsx, .xls" class="hidden" onchange="processBooksFile(event)">
+            <label for="booksFileInput" class="w-full cursor-pointer flex items-center justify-center py-2 px-3 bg-slate-50 hover:bg-indigo-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 transition">
+              <i class="fa-solid fa-cloud-arrow-up mr-2 text-indigo-600"></i> <span id="labelBooks">Upload Books.xlsx</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- GSTR-2B Portal -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-blue-700 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-cloud mr-1.5"></i> 2. GSTR-2B (Portal)</span>
+              <span id="badge2BCount" class="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono font-semibold">0 items</span>
+            </div>
+            <p class="text-xs text-slate-500 mb-3">Upload official portal GSTR-2B Excel</p>
+          </div>
+          <div>
+            <input type="file" id="twoBFileInput" accept=".xlsx, .xls" class="hidden" onchange="processGSTR2BFile(event)">
+            <label for="twoBFileInput" class="w-full cursor-pointer flex items-center justify-center py-2 px-3 bg-slate-50 hover:bg-blue-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 transition">
+              <i class="fa-solid fa-cloud-arrow-up mr-2 text-blue-600"></i> <span id="label2B">Upload GSTR2B.xlsx</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- ECL Portal -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-amber-700 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-wallet mr-1.5"></i> 3. ECL (Ledger)</span>
+              <span id="badgeEclStatus" class="text-[11px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-mono font-semibold">Pending</span>
+            </div>
+            <p class="text-xs text-slate-500 mb-3">Upload Electronic Credit Ledger statement</p>
+          </div>
+          <div>
+            <input type="file" id="eclFileInput" accept=".xlsx, .xls" class="hidden" onchange="processECLFile(event)">
+            <label for="eclFileInput" class="w-full cursor-pointer flex items-center justify-center py-2 px-3 bg-slate-50 hover:bg-amber-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 transition">
+              <i class="fa-solid fa-cloud-arrow-up mr-2 text-amber-600"></i> <span id="labelECL">Upload ECL.xlsx</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action & Reco Status Header -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div>
+          <span class="text-xs font-bold text-slate-700">Period: <span id="dashMonthLabel" class="text-indigo-600 font-mono font-bold">Aug-2026</span></span>
+          <span class="text-xs text-slate-400 mx-2">|</span>
+          <span class="text-xs text-slate-600">GSTIN: <span id="dashGstinLabel" class="font-mono font-bold text-slate-800">06AALCV4347B1ZE</span></span>
+        </div>
+        <div class="flex space-x-2">
+          <button onclick="runReconciliation()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow transition">
+            <i class="fa-solid fa-arrows-rotate mr-1.5"></i> Recompute Reco
+          </button>
+          <button onclick="generateExcelWorkbook10Sheets()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition">
+            <i class="fa-solid fa-file-excel mr-1.5"></i> Download 10-Sheet Reco.xlsx
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Dashboard Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Column 1: Accurate ITC Totals & Variance -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 border-b pb-2"><i class="fa-solid fa-coins mr-1"></i> ITC Position (Actual Inputs)</h3>
+          
+          <div class="space-y-3 text-sm">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-600">Books Total ITC:</span>
+              <span class="font-mono font-bold text-slate-900" id="dashBooksItc">₹0.00</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-600">GSTR-2B Total ITC:</span>
+              <span class="font-mono font-bold text-blue-600" id="dash2BItc">₹0.00</span>
+            </div>
+            <div class="border-t border-dashed pt-2 flex justify-between items-center">
+              <span class="font-semibold text-slate-800">Gross Difference:</span>
+              <span class="font-mono font-bold" id="dashDiffItc">₹0.00</span>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 p-3 rounded-lg text-xs space-y-1 font-mono text-slate-600" id="dashTaxBreakup">
+            <div>IGST Diff: ₹0.00</div>
+            <div>CGST Diff: ₹0.00</div>
+            <div>SGST Diff: ₹0.00</div>
+          </div>
+
+          <div class="p-3 bg-amber-50 rounded-lg text-xs text-amber-800 border border-amber-200">
+            <div class="font-bold flex items-center"><i class="fa-solid fa-shield-halved mr-1.5"></i> Section 16(2)(aa) Guard Active:</div>
+            <div class="mt-1">Unmatched Books Invoices are <span class="font-bold underline">excluded</span> from the ECL Credit claim to ensure statutory compliance.</div>
+          </div>
+        </div>
+
+        <!-- Column 2: Invoices Match Status -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 border-b pb-2"><i class="fa-solid fa-list-check mr-1"></i> Invoices Summary</h3>
+          
+          <div class="space-y-2.5 text-sm">
+            <div class="flex justify-between items-center p-2 rounded bg-emerald-50 text-emerald-800 cursor-pointer" onclick="switchTab('matched')">
+              <span class="font-medium text-xs">Matched Invoices (Fuzzy 0-stripped)</span>
+              <span class="font-mono font-bold" id="countMatched">0</span>
+            </div>
+            <div class="flex justify-between items-center p-2 rounded bg-amber-50 text-amber-800 cursor-pointer" onclick="switchTab('booksNot2B')">
+              <span class="font-medium text-xs">Books Not in 2B (Disallowed in 3B)</span>
+              <span class="font-mono font-bold" id="countBooksNot2B">0</span>
+            </div>
+            <div class="flex justify-between items-center p-2 rounded bg-blue-50 text-blue-800 cursor-pointer" onclick="switchTab('twoBNotBooks')">
+              <span class="font-medium text-xs">2B Not in Books (Unclaimed)</span>
+              <span class="font-mono font-bold" id="count2BNotBooks">0</span>
+            </div>
+            <div class="flex justify-between items-center p-2 rounded bg-rose-50 text-rose-800 cursor-pointer" onclick="switchTab('taxDiff')">
+              <span class="font-medium text-xs">Tax Difference (> ₹1.00)</span>
+              <span class="font-mono font-bold" id="countTaxDiff">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 3: Electronic Credit Ledger Working -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 border-b pb-2"><i class="fa-solid fa-scale-balanced mr-1"></i> ECL Summary (Ledger Match)</h3>
+          
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-600">Opening Balance:</span>
+              <span class="font-mono font-semibold" id="dashEclOpening">₹0.00</span>
+            </div>
+            <div class="flex justify-between items-center text-emerald-600">
+              <span>+ Month Credits (Availed in 3B):</span>
+              <span class="font-mono font-semibold" id="dashEclCredits">₹0.00</span>
+            </div>
+            <div class="flex justify-between items-center text-rose-600">
+              <span>- Month Debits (Utilized for Tax):</span>
+              <span class="font-mono font-semibold" id="dashEclDebits">₹0.00</span>
+            </div>
+            <div class="border-t pt-1 flex justify-between items-center font-bold text-slate-800">
+              <span>Computed Closing Balance:</span>
+              <span class="font-mono" id="dashEclComputedClosing">₹0.00</span>
+            </div>
+            <div class="flex justify-between items-center text-slate-600">
+              <span>Portal Closing Balance:</span>
+              <span class="font-mono font-semibold" id="dashEclPortalClosing">₹0.00</span>
+            </div>
+            <div class="border-t border-dashed pt-1 flex justify-between items-center font-bold" id="dashEclDiffWrapper">
+              <span>Ledger Discrepancy:</span>
+              <span class="font-mono" id="dashEclDiff">₹0.00</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 2: MONTH MANAGEMENT -->
+    <div id="tab-monthMgmt" class="tab-pane hidden space-y-4">
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex justify-between items-center border-b pb-3">
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">Monthly Roll-Forward & Database Management</h3>
+            <p class="text-xs text-slate-500">Roll current month closing balance and unresolved records into next month's opening.</p>
+          </div>
+          <button onclick="executeRollForward()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow">
+            <i class="fa-solid fa-forward mr-1.5"></i> Close Month & Roll Forward
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <div class="font-semibold text-slate-700 mb-1">Carry Forward Invoices</div>
+            <div class="text-lg font-bold text-slate-900" id="rollInvoicesCount">0 items</div>
+            <p class="text-[11px] text-slate-500 mt-1">Pending in GSTR-2B</p>
+          </div>
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <div class="font-semibold text-slate-700 mb-1">ECL Closing to Carry Forward</div>
+            <div class="text-lg font-bold text-emerald-600" id="rollEclClosing">₹0.00</div>
+            <p class="text-[11px] text-slate-500 mt-1">Next month opening balance</p>
+          </div>
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <div class="font-semibold text-slate-700 mb-1">Database Size</div>
+            <div class="text-lg font-bold text-slate-900" id="dbSizeKb">0 KB</div>
+            <p class="text-[11px] text-slate-500 mt-1">Local browser storage</p>
+          </div>
+        </div>
+
+        <div class="border-t pt-4">
+          <h4 class="text-xs font-bold uppercase text-slate-600 mb-2">Stored Periods for Active GSTIN</h4>
+          <div id="monthHistoryList" class="flex flex-wrap gap-2 text-xs"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: MATCHED INVOICES -->
+    <div id="tab-matched" class="tab-pane hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+          <div>
+            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">Matched Invoices</h3>
+            <p class="text-[11px] text-slate-500">Includes invoices matched with normalized zero counts (e.g. INV-00008 matched with INV-000008)</p>
+          </div>
+          <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200" id="badgeMatchedCount">0 matched</span>
+        </div>
+        <div class="overflow-x-auto max-h-[500px]">
+          <table class="w-full text-left text-xs border-collapse font-sans">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px] sticky top-0">
+              <tr>
+                <th class="py-2.5 px-3">Books Inv No</th>
+                <th class="py-2.5 px-3">2B Inv No</th>
+                <th class="py-2.5 px-3 text-right">Taxable (₹)</th>
+                <th class="py-2.5 px-3 text-right">IGST (₹)</th>
+                <th class="py-2.5 px-3 text-right">CGST (₹)</th>
+                <th class="py-2.5 px-3 text-right">SGST (₹)</th>
+                <th class="py-2.5 px-3 text-center">Match Rule</th>
+              </tr>
+            </thead>
+            <tbody id="tableMatchedBody" class="divide-y divide-slate-100 font-mono">
+              <tr><td colspan="7" class="py-6 text-center text-slate-400 font-sans">No matched invoices yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: BOOKS NOT IN 2B -->
+    <div id="tab-booksNot2B" class="tab-pane hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+          <div>
+            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">Books Not In 2B (Ineligible for ITC Credit)</h3>
+            <p class="text-[11px] text-slate-500">Present in Accounting Books, but absent from GSTR-2B. Disallowed under Sec 16(2)(aa).</p>
+          </div>
+          <span class="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded border border-amber-200" id="badgeBooksNot2BCount">0 items</span>
+        </div>
+        <div class="overflow-x-auto max-h-[500px]">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px] sticky top-0">
+              <tr>
+                <th class="py-2.5 px-3">Invoice No</th>
+                <th class="py-2.5 px-3">Date</th>
+                <th class="py-2.5 px-3 text-right">Taxable (₹)</th>
+                <th class="py-2.5 px-3 text-right">IGST (₹)</th>
+                <th class="py-2.5 px-3 text-right">CGST (₹)</th>
+                <th class="py-2.5 px-3 text-right">SGST (₹)</th>
+                <th class="py-2.5 px-3 text-center">Ageing</th>
+                <th class="py-2.5 px-3">Remarks</th>
+              </tr>
+            </thead>
+            <tbody id="tableBooksNot2BBody" class="divide-y divide-slate-100 font-mono">
+              <tr><td colspan="8" class="py-6 text-center text-slate-400 font-sans">No records found.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: 2B NOT IN BOOKS -->
+    <div id="tab-twoBNotBooks" class="tab-pane hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+          <div>
+            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">2B Not In Books (Unclaimed / Unbooked Inward)</h3>
+            <p class="text-[11px] text-slate-500">Present in Portal GSTR-2B, but invoice omitted in accounting books</p>
+          </div>
+          <span class="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded border border-blue-200" id="badge2BNotBooksCount">0 items</span>
+        </div>
+        <div class="overflow-x-auto max-h-[500px]">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px] sticky top-0">
+              <tr>
+                <th class="py-2.5 px-3">Supplier GSTIN</th>
+                <th class="py-2.5 px-3">Supplier Name</th>
+                <th class="py-2.5 px-3">Invoice No</th>
+                <th class="py-2.5 px-3">Date</th>
+                <th class="py-2.5 px-3 text-right">Taxable (₹)</th>
+                <th class="py-2.5 px-3 text-right">IGST (₹)</th>
+                <th class="py-2.5 px-3 text-right">CGST (₹)</th>
+                <th class="py-2.5 px-3 text-right">SGST (₹)</th>
+                <th class="py-2.5 px-3 text-center">Action Required</th>
+              </tr>
+            </thead>
+            <tbody id="table2BNotBooksBody" class="divide-y divide-slate-100 font-mono">
+              <tr><td colspan="9" class="py-6 text-center text-slate-400 font-sans">No unbooked 2B records found.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: TAX DIFFERENCE -->
+    <div id="tab-taxDiff" class="tab-pane hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+          <div>
+            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">Tax Amount Discrepancies (> ₹1.00)</h3>
+            <p class="text-[11px] text-slate-500">Invoices matched by number but showing calculation differences</p>
+          </div>
+          <span class="text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded border border-rose-200" id="badgeTaxDiffCount">0 items</span>
+        </div>
+        <div class="overflow-x-auto max-h-[500px]">
+          <table class="w-full text-left text-xs border-collapse font-sans">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px] sticky top-0">
+              <tr>
+                <th class="py-2.5 px-3">Invoice No</th>
+                <th class="py-2.5 px-3 text-right">Books IGST</th>
+                <th class="py-2.5 px-3 text-right">2B IGST</th>
+                <th class="py-2.5 px-3 text-right text-rose-600">Diff IGST</th>
+                <th class="py-2.5 px-3 text-right">Books CGST</th>
+                <th class="py-2.5 px-3 text-right">2B CGST</th>
+                <th class="py-2.5 px-3 text-right text-rose-600">Diff CGST</th>
+                <th class="py-2.5 px-3 text-right">Books SGST</th>
+                <th class="py-2.5 px-3 text-right">2B SGST</th>
+                <th class="py-2.5 px-3 text-right text-rose-600">Diff SGST</th>
+              </tr>
+            </thead>
+            <tbody id="tableTaxDiffBody" class="divide-y divide-slate-100 font-mono">
+              <tr><td colspan="10" class="py-6 text-center text-slate-400 font-sans">No tax differences found.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 7: CDN REGISTER -->
+    <div id="tab-cdnRegister" class="tab-pane hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+          <div>
+            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">Credit / Debit Note Register</h3>
+            <p class="text-[11px] text-slate-500">Credit Note = ITC Reduction (-) | Debit Note = ITC Addition (+)</p>
+          </div>
+          <span class="text-xs font-mono font-bold text-slate-700" id="badgeCdnTotals">CN: 0 | DN: 0</span>
+        </div>
+        <div class="overflow-x-auto max-h-[500px]">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px] sticky top-0">
+              <tr>
+                <th class="py-2.5 px-3">Note Type</th>
+                <th class="py-2.5 px-3">Note Number</th>
+                <th class="py-2.5 px-3">Date</th>
+                <th class="py-2.5 px-3">Supplier GSTIN</th>
+                <th class="py-2.5 px-3 text-right">Taxable (₹)</th>
+                <th class="py-2.5 px-3 text-right">IGST (₹)</th>
+                <th class="py-2.5 px-3 text-right">CGST (₹)</th>
+                <th class="py-2.5 px-3 text-right">SGST (₹)</th>
+                <th class="py-2.5 px-3 text-center">Impact on ITC</th>
+              </tr>
+            </thead>
+            <tbody id="tableCdnBody" class="divide-y divide-slate-100 font-mono">
+              <tr><td colspan="9" class="py-6 text-center text-slate-400 font-sans">No Credit or Debit notes detected.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 8: ECL REGISTER -->
+    <div id="tab-eclRegister" class="tab-pane hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+          <div>
+            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">Electronic Credit Ledger Transactions</h3>
+            <p class="text-[11px] text-slate-500">Actual credits availed, debits utilized, and balances parsed directly from ECL.xlsx</p>
+          </div>
+          <span class="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded" id="badgeEclParsedStatus">Ledger verified</span>
+        </div>
+        <div class="overflow-x-auto max-h-[500px]">
+          <table class="w-full text-left text-xs border-collapse font-sans">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px] sticky top-0">
+              <tr>
+                <th class="py-2.5 px-3">Date</th>
+                <th class="py-2.5 px-3">Reference No</th>
+                <th class="py-2.5 px-3">Description</th>
+                <th class="py-2.5 px-3">Type</th>
+                <th class="py-2.5 px-3 text-right">Integrated Tax</th>
+                <th class="py-2.5 px-3 text-right">Central Tax</th>
+                <th class="py-2.5 px-3 text-right">State Tax</th>
+                <th class="py-2.5 px-3 text-right">Total (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="tableEclBody" class="divide-y divide-slate-100 font-mono">
+              <tr><td colspan="8" class="py-6 text-center text-slate-400 font-sans">Upload ECL.xlsx to inspect ledger logs.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 9: AUDIT LOG -->
+    <div id="tab-auditLog" class="tab-pane hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+          <div>
+            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">System Audit Trail</h3>
+            <p class="text-[11px] text-slate-500">Upload records, calculations, and operational events</p>
+          </div>
+          <button onclick="clearAuditLog()" class="text-xs text-rose-600 hover:underline">Clear Audit Log</button>
+        </div>
+        <div class="overflow-x-auto max-h-[500px]">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px] sticky top-0">
+              <tr>
+                <th class="py-2 px-3">Timestamp</th>
+                <th class="py-2 px-3">Action</th>
+                <th class="py-2 px-3">File / Details</th>
+                <th class="py-2 px-3">Period</th>
+                <th class="py-2 px-3">Active GSTIN</th>
+              </tr>
+            </thead>
+            <tbody id="tableAuditBody" class="divide-y divide-slate-100 font-mono text-[11px]"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ================= REGISTER ENTITY MODAL ================= -->
+  <div id="registerModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <h3 class="font-bold text-slate-900 text-base">Register New Entity GSTIN</h3>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">GSTIN</label>
+          <input type="text" id="regGstin" placeholder="15-digit GSTIN" class="w-full p-2 border rounded font-mono uppercase">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Default Password</label>
+          <input type="password" id="regPass" value="Lakshya@123" class="w-full p-2 border rounded">
+        </div>
+      </div>
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="toggleRegisterModal(false)" class="px-3 py-1.5 bg-slate-100 text-slate-700 rounded text-xs">Cancel</button>
+        <button onclick="saveNewEntity()" class="px-3 py-1.5 bg-indigo-600 text-white rounded text-xs font-semibold">Register</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CHANGE PASSWORD MODAL ================= -->
+  <div id="passwordModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <h3 class="font-bold text-slate-900 text-base">Change Password</h3>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Entity GSTIN</label>
+          <input type="text" id="chgGstin" placeholder="Enter GSTIN" class="w-full p-2 border rounded font-mono uppercase">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">New Password</label>
+          <input type="password" id="chgNewPass" class="w-full p-2 border rounded">
+        </div>
+      </div>
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="togglePasswordModal(false)" class="px-3 py-1.5 bg-slate-100 text-slate-700 rounded text-xs">Cancel</button>
+        <button onclick="saveNewPassword()" class="px-3 py-1.5 bg-indigo-600 text-white rounded text-xs font-semibold">Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= RECONCILIATION ENGINE JAVASCRIPT ================= -->
+  <script>
+    const DEFAULT_PASS = "Lakshya@123";
+    let activeGstin = "06AALCV4347B1ZE";
+    let activePeriod = "2026-08";
+
+    let DB = JSON.parse(localStorage.getItem("GSTRECO_DB") || "{}");
+    if (!DB.users) DB.users = {};
+    if (!DB.users["06AALCV4347B1ZE"]) DB.users["06AALCV4347B1ZE"] = DEFAULT_PASS;
+    if (!DB.entities) DB.entities = {};
+    if (!DB.auditLog) DB.auditLog = [];
+
+    function getMonthStore(gstin, period) {
+      if (!DB.entities[gstin]) DB.entities[gstin] = {};
+      if (!DB.entities[gstin][period]) {
+        DB.entities[gstin][period] = {
+          books: [],
+          twoB: [],
+          cdn: { creditNotes: [], debitNotes: [] },
+          eclTransactions: [],
+          eclSummary: { opening: 0, credits: 0, debits: 0, closing: 0, portalClosing: 0 },
+          recoResult: null
+        };
+      }
+      return DB.entities[gstin][period];
+    }
+
+    function saveDB() {
+      localStorage.setItem("GSTRECO_DB", JSON.stringify(DB));
+      updateStorageMetrics();
+    }
+
+    function addAudit(action, details) {
+      DB.auditLog.unshift({
+        time: new Date().toLocaleString('en-IN'),
+        action,
+        details,
+        month: activePeriod,
+        gstin: activeGstin
+      });
+      if (DB.auditLog.length > 200) DB.auditLog.pop();
+      saveDB();
+      renderAuditLog();
+    }
+
+    // --- AUTHENTICATION ---
+    function handleLogin() {
+      const gstin = document.getElementById('loginGstin').value.trim().toUpperCase();
+      const pass = document.getElementById('loginPassword').value.trim();
+      const alertBox = document.getElementById('authAlert');
+
+      if (!gstin || !pass) {
+        alertBox.textContent = "Please provide both GSTIN and Password.";
+        alertBox.classList.remove('hidden');
+        return;
+      }
+
+      if (!DB.users[gstin]) {
+        DB.users[gstin] = DEFAULT_PASS;
+        saveDB();
+      }
+
+      if (DB.users[gstin] === pass) {
+        activeGstin = gstin;
+        document.getElementById('currentGstinBadge').textContent = activeGstin;
+        document.getElementById('dashGstinLabel').textContent = activeGstin;
+        document.getElementById('authView').classList.add('hidden');
+        alertBox.classList.add('hidden');
+        addAudit("USER_LOGIN", "Successful session authentication");
+        initDashboard();
+      } else {
+        alertBox.textContent = "Incorrect password. Default: Lakshya@123";
+        alertBox.classList.remove('hidden');
+      }
+    }
+
+    function handleLogout() {
+      addAudit("USER_LOGOUT", "Session ended");
+      document.getElementById('authView').classList.remove('hidden');
+    }
+
+    function toggleRegisterModal(show) { document.getElementById('registerModal').classList.toggle('hidden', !show); }
+    function togglePasswordModal(show) { document.getElementById('passwordModal').classList.toggle('hidden', !show); }
+
+    function saveNewEntity() {
+      const gstin = document.getElementById('regGstin').value.trim().toUpperCase();
+      const pass = document.getElementById('regPass').value.trim() || DEFAULT_PASS;
+      if (gstin.length !== 15) { alert("Please input a valid 15-character GSTIN"); return; }
+      DB.users[gstin] = pass;
+      saveDB();
+      addAudit("ENTITY_REGISTERED", `New GSTIN ${gstin} registered`);
+      alert(`Entity ${gstin} successfully created.`);
+      toggleRegisterModal(false);
+    }
+
+    function saveNewPassword() {
+      const gstin = document.getElementById('chgGstin').value.trim().toUpperCase();
+      const pass = document.getElementById('chgNewPass').value.trim();
+      if (!DB.users[gstin]) { alert("GSTIN not found"); return; }
+      DB.users[gstin] = pass;
+      saveDB();
+      addAudit("PASSWORD_CHANGE", `Password updated for ${gstin}`);
+      alert(`Password updated for ${gstin}`);
+      togglePasswordModal(false);
+    }
+
+    function notify(msg, isError = false) {
+      const c = document.getElementById('statusNotificationContent');
+      const b = document.getElementById('statusNotification');
+      c.className = `p-3 rounded-lg text-xs font-semibold flex items-center justify-between ${
+        isError ? 'bg-rose-50 border border-rose-200 text-rose-800' : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+      }`;
+      c.innerHTML = `<span><i class="fa-solid ${isError ? 'fa-triangle-exclamation' : 'fa-circle-check'} mr-2"></i> ${msg}</span>
+                     <button onclick="document.getElementById('statusNotification').classList.add('hidden')" class="text-xs ml-4"><i class="fa-solid fa-xmark"></i></button>`;
+      b.classList.remove('hidden');
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('header button[id^="nav-"]').forEach(el => el.classList.remove('tab-active'));
+      const target = document.getElementById(`tab-${tabId}`);
+      const btn = document.getElementById(`nav-${tabId}`);
+      if (target) target.classList.remove('hidden');
+      if (btn) btn.classList.add('tab-active');
+    }
+
+    function changeActiveMonth(period) {
+      activePeriod = period;
+      document.getElementById('dashMonthLabel').textContent = period;
+      addAudit("MONTH_SWITCHED", `Tax period shifted to ${period}`);
+      initDashboard();
+    }
+
+    // --- ENHANCED INVOICE NORMALIZER ---
+    // Cleans separators and normalizes variable zeros:
+    // "INV-00008" -> "INV8", "INV-000008" -> "INV8", "CS/0938" -> "CS938"
+    function normalizeInv(str) {
+      if (!str) return '';
+      let s = String(str).trim().toUpperCase();
+      // Remove all hyphens, slashes, spaces, underscores
+      s = s.replace(/[\/\-_\s]/g, '');
+      // Strip leading zeros immediately after letter sequences
+      s = s.replace(/([A-Z]+)0+([1-9][0-9]*)/g, '$1$2');
+      // Strip leading zeros at start of string
+      s = s.replace(/^0+([1-9][0-9]*)/g, '$1');
+      return s;
+    }
+
+    // --- RECONCILIATION MATCHING ENGINE ---
+    function runReconciliation() {
+      const store = getMonthStore(activeGstin, activePeriod);
+
+      const matched = [];
+      const booksNotIn2B = [];
+      const twoBNotInBooks = [];
+      const taxDifference = [];
+
+      // Maintain a Set of matched 2B indices to avoid in-place state mutation bugs
+      const matchedTwoBIndices = new Set();
+
+      // Step 1: Scan each Books record against 2B list
+      store.books.forEach((bRow, bIdx) => {
+        let matchIdx = -1;
+        let matchRule = "";
+
+        // Strategy A: Exact invoice number match
+        matchIdx = store.twoB.findIndex((t, idx) => 
+          !matchedTwoBIndices.has(idx) && 
+          t.invoiceNo.trim().toUpperCase() === bRow.invoiceNo.trim().toUpperCase()
+        );
+
+        if (matchIdx !== -1) {
+          matchRule = "Exact Invoice Match";
+        } else {
+          // Strategy B: Normalized zero-stripped match (e.g. INV-00008 == INV-000008)
+          const bNorm = normalizeInv(bRow.invoiceNo);
+          matchIdx = store.twoB.findIndex((t, idx) => 
+            !matchedTwoBIndices.has(idx) && 
+            normalizeInv(t.invoiceNo) === bNorm
+          );
+
+          if (matchIdx !== -1) {
+            matchRule = "Normalized (Zero-Count Match)";
+          }
+        }
+
+        if (matchIdx !== -1) {
+          // Mark 2B index as consumed
+          matchedTwoBIndices.add(matchIdx);
+          const tRow = store.twoB[matchIdx];
+
+          const diffIGST = Math.abs(bRow.igst - tRow.igst);
+          const diffCGST = Math.abs(bRow.cgst - tRow.cgst);
+          const diffSGST = Math.abs(bRow.sgst - tRow.sgst);
+
+          if (diffIGST > 1.00 || diffCGST > 1.00 || diffSGST > 1.00) {
+            taxDifference.push({
+              invoiceNo: bRow.invoiceNo,
+              booksIgst: bRow.igst,
+              twoBIgst: tRow.igst,
+              diffIgst: bRow.igst - tRow.igst,
+              booksCgst: bRow.cgst,
+              twoBCgst: tRow.cgst,
+              diffCgst: bRow.cgst - tRow.cgst,
+              booksSgst: bRow.sgst,
+              twoBSgst: tRow.sgst,
+              diffSgst: bRow.sgst - tRow.sgst
+            });
+          } else {
+            matched.push({
+              booksInv: bRow.invoiceNo,
+              twoBInv: tRow.invoiceNo,
+              taxable: bRow.taxable,
+              igst: tRow.igst, // Use eligible 2B tax amount
+              cgst: tRow.cgst,
+              sgst: tRow.sgst,
+              matchRule: matchRule
+            });
+          }
+        } else {
+          // Invoice is NOT in 2B: Section 16(2)(aa) blocks ITC credit!
+          booksNotIn2B.push({
+            invoiceNo: bRow.invoiceNo,
+            invoiceDate: bRow.invoiceDate || '2026-08',
+            taxable: bRow.taxable,
+            igst: bRow.igst,
+            cgst: bRow.cgst,
+            sgst: bRow.sgst,
+            ageing: "Current Month",
+            remarks: "Pending in GSTR-1 / Ineligible for ECL"
+          });
+        }
+      });
+
+      // Step 2: Unmatched items in GSTR-2B
+      store.twoB.forEach((tRow, idx) => {
+        if (!matchedTwoBIndices.has(idx)) {
+          twoBNotInBooks.push({
+            gstin: tRow.gstin,
+            name: tRow.supplierName || 'Portal Supplier',
+            invoiceNo: tRow.invoiceNo,
+            invoiceDate: tRow.invoiceDate,
+            taxable: tRow.taxable,
+            igst: tRow.igst,
+            cgst: tRow.cgst,
+            sgst: tRow.sgst,
+            actionRequired: "Book in Accounting Software"
+          });
+        }
+      });
+
+      store.recoResult = { matched, booksNotIn2B, twoBNotInBooks, taxDifference };
+      saveDB();
+      addAudit("RECO_EXECUTED", `Classified: ${matched.length} Matched, ${booksNotIn2B.length} Books not in 2B, ${twoBNotInBooks.length} 2B not in Books`);
+      renderDashboardUI();
+    }
+
+    // --- FILE PARSER 1: BOOKS (ZOHO) ---
+    function processBooksFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      document.getElementById('labelBooks').textContent = file.name;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const wb = XLSX.read(evt.target.result, { type: 'binary' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const raw = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          // Validate GSTIN
+          let detectedGstin = null;
+          for (let r = 0; r < Math.min(8, raw.length); r++) {
+            const rowStr = JSON.stringify(raw[r] || '');
+            const m = rowStr.match(/[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}/);
+            if (m) { detectedGstin = m[0]; break; }
+          }
+          if (detectedGstin && detectedGstin !== activeGstin) {
+            notify(`GSTIN Mismatch in Books! Session: ${activeGstin}, File: ${detectedGstin}`, true);
+            return;
+          }
+
+          let hIdx = -1;
+          for (let r = 0; r < 12; r++) {
+            if (raw[r] && raw[r].includes('entry_number')) { hIdx = r; break; }
+          }
+          if (hIdx === -1) {
+            notify("Could not detect 'entry_number' in Books file. Please upload standard Zoho export.", true);
+            return;
+          }
+
+          const h = raw[hIdx];
+          const colDate = h.indexOf('date');
+          const colInv = h.indexOf('entry_number');
+          const colType = h.indexOf('transaction_type');
+          const colTaxable = h.indexOf('Taxable Value');
+          const colIgst = h.indexOf('Integrated Tax');
+          const colCgst = h.indexOf('Central Tax');
+          const colSgst = h.indexOf('State/UT Tax');
+
+          const store = getMonthStore(activeGstin, activePeriod);
+          store.books = [];
+
+          for (let i = hIdx + 1; i < raw.length; i++) {
+            const row = raw[i];
+            if (!row || !row[colInv]) continue;
+
+            const txType = String(row[colType] || '').toLowerCase();
+            store.books.push({
+              invoiceNo: String(row[colInv]).trim(),
+              invoiceDate: String(row[colDate] || '').slice(0, 10),
+              type: txType,
+              taxable: parseFloat(row[colTaxable]) || 0,
+              igst: parseFloat(row[colIgst]) || 0,
+              cgst: parseFloat(row[colCgst]) || 0,
+              sgst: parseFloat(row[colSgst]) || 0
+            });
+          }
+
+          saveDB();
+          addAudit("FILE_UPLOAD", `Uploaded Books.xlsx (${store.books.length} entries)`);
+          notify(`Books loaded: ${store.books.length} purchase vouchers processed.`);
+          runReconciliation();
+        } catch (err) {
+          notify(`Books parsing failed: ${err.message}`, true);
+        }
+      };
+      reader.readAsBinaryString(file);
+    }
+
+    // --- FILE PARSER 2: GSTR-2B ---
+    function processGSTR2BFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      document.getElementById('label2B').textContent = file.name;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const wb = XLSX.read(evt.target.result, { type: 'binary' });
+          const store = getMonthStore(activeGstin, activePeriod);
+          store.twoB = [];
+          store.cdn = { creditNotes: [], debitNotes: [] };
+
+          if (wb.Sheets['B2B']) {
+            const rows = XLSX.utils.sheet_to_json(wb.Sheets['B2B'], { header: 1 });
+            let hRow = -1;
+            for (let r = 0; r < 10; r++) {
+              if (rows[r] && (rows[r].includes('GSTIN of supplier') || JSON.stringify(rows[r]).includes('Invoice number'))) {
+                hRow = r; break;
+              }
+            }
+            if (hRow !== -1) {
+              for (let i = hRow + 2; i < rows.length; i++) {
+                const r = rows[i];
+                if (!r || !r[0] || !r[2]) continue;
+                store.twoB.push({
+                  gstin: String(r[0]).trim().toUpperCase(),
+                  supplierName: String(r[1] || '').trim(),
+                  invoiceNo: String(r[2]).trim(),
+                  invoiceDate: String(r[4] || ''),
+                  taxable: parseFloat(r[8]) || 0,
+                  igst: parseFloat(r[9]) || 0,
+                  cgst: parseFloat(r[10]) || 0,
+                  sgst: parseFloat(r[11]) || 0
+                });
+              }
+            }
+          }
+
+          if (wb.Sheets['B2B-CDNR']) {
+            const cdnrRows = XLSX.utils.sheet_to_json(wb.Sheets['B2B-CDNR'], { header: 1 });
+            let chRow = -1;
+            for (let r = 0; r < 10; r++) {
+              if (cdnrRows[r] && JSON.stringify(cdnrRows[r]).includes('Note number')) { chRow = r; break; }
+            }
+            if (chRow !== -1) {
+              for (let i = chRow + 2; i < cdnrRows.length; i++) {
+                const r = cdnrRows[i];
+                if (!r || !r[0] || !r[2]) continue;
+                const noteType = String(r[3] || '').toUpperCase();
+                const noteObj = {
+                  gstin: String(r[0]).trim().toUpperCase(),
+                  supplierName: String(r[1] || '').trim(),
+                  noteNo: String(r[2]).trim(),
+                  noteType: noteType.startsWith('C') ? 'Credit Note' : 'Debit Note',
+                  date: String(r[5] || ''),
+                  taxable: parseFloat(r[8]) || 0,
+                  igst: parseFloat(r[9]) || 0,
+                  cgst: parseFloat(r[10]) || 0,
+                  sgst: parseFloat(r[11]) || 0,
+                  itcImpact: noteType.startsWith('C') ? 'ITC Reduction (-)' : 'ITC Addition (+)'
+                };
+                if (noteType.startsWith('C')) store.cdn.creditNotes.push(noteObj);
+                else store.cdn.debitNotes.push(noteObj);
+              }
+            }
+          }
+
+          saveDB();
+          addAudit("FILE_UPLOAD", `Uploaded GSTR-2B (${store.twoB.length} B2B items)`);
+          notify(`GSTR-2B Loaded: ${store.twoB.length} regular invoices processed.`);
+          runReconciliation();
+        } catch (err) {
+          notify(`GSTR-2B parsing error: ${err.message}`, true);
+        }
+      };
+      reader.readAsBinaryString(file);
+    }
+
+    // --- FILE PARSER 3: ELECTRONIC CREDIT LEDGER ---
+    function processECLFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      document.getElementById('labelECL').textContent = file.name;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const wb = XLSX.read(evt.target.result, { type: 'binary' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          let gstinFound = null;
+          for (let r = 0; r < Math.min(8, rows.length); r++) {
+            const m = JSON.stringify(rows[r] || '').match(/[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}/);
+            if (m) { gstinFound = m[0]; break; }
+          }
+          if (gstinFound && gstinFound !== activeGstin) {
+            notify(`GSTIN Mismatch in ECL file! Active: ${activeGstin}, Found: ${gstinFound}`, true);
+            return;
+          }
+
+          const store = getMonthStore(activeGstin, activePeriod);
+          store.eclTransactions = [];
+
+          let opBalance = 0;
+          let totCredits = 0;
+          let totDebits = 0;
+          let lastClosing = 0;
+
+          for (let r = 0; r < rows.length; r++) {
+            const row = rows[r];
+            if (!row) continue;
+            const desc = String(row[4] || '').toLowerCase();
+
+            if (desc.includes('opening balance')) {
+              opBalance = (parseFloat(row[11]) || 0) + (parseFloat(row[12]) || 0) + (parseFloat(row[13]) || 0);
+            }
+
+            if (row[0] && typeof row[0] === 'number') {
+              const txType = String(row[5] || '').toLowerCase();
+              const igst = parseFloat(row[6]) || 0;
+              const cgst = parseFloat(row[7]) || 0;
+              const sgst = parseFloat(row[8]) || 0;
+              const totalAmount = parseFloat(row[10]) || (igst + cgst + sgst);
+              const balAvail = (parseFloat(row[11]) || 0) + (parseFloat(row[12]) || 0) + (parseFloat(row[13]) || 0);
+
+              if (txType.includes('credit')) totCredits += totalAmount;
+              if (txType.includes('debit')) totDebits += totalAmount;
+              lastClosing = balAvail;
+
+              store.eclTransactions.push({
+                date: row[1] || '-',
+                refNo: row[2] || '-',
+                desc: row[4] || '-',
+                type: row[5] || '-',
+                igst, cgst, sgst,
+                total: totalAmount
+              });
+            }
+          }
+
+          store.eclSummary = {
+            opening: opBalance,
+            credits: totCredits,
+            debits: totDebits,
+            closing: Math.round(opBalance + totCredits - totDebits),
+            portalClosing: lastClosing
+          };
+
+          saveDB();
+          addAudit("FILE_UPLOAD", `Uploaded ECL statement (${store.eclTransactions.length} txs, closing: ₹${lastClosing})`);
+          notify(`ECL parsed: Opening ₹${opBalance}, Credits ₹${totCredits}, Debits ₹${totDebits}, Closing ₹${lastClosing}`);
+          renderDashboardUI();
+        } catch (err) {
+          notify(`ECL parsing error: ${err.message}`, true);
+        }
+      };
+      reader.readAsBinaryString(file);
+    }
+
+    function initDashboard() {
+      renderDashboardUI();
+      renderMonthManagement();
+      renderAuditLog();
+    }
+
+    function fmt(n) {
+      return (n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function renderDashboardUI() {
+      const store = getMonthStore(activeGstin, activePeriod);
+
+      // True raw mathematical sums of actual files
+      const booksTot = store.books.reduce((acc, r) => ({
+        taxable: acc.taxable + r.taxable,
+        igst: acc.igst + r.igst,
+        cgst: acc.cgst + r.cgst,
+        sgst: acc.sgst + r.sgst
+      }), { taxable: 0, igst: 0, cgst: 0, sgst: 0 });
+
+      const twoBTot = store.twoB.reduce((acc, r) => ({
+        taxable: acc.taxable + r.taxable,
+        igst: acc.igst + r.igst,
+        cgst: acc.cgst + r.cgst,
+        sgst: acc.sgst + r.sgst
+      }), { taxable: 0, igst: 0, cgst: 0, sgst: 0 });
+
+      const bTax = booksTot.igst + booksTot.cgst + booksTot.sgst;
+      const tTax = twoBTot.igst + twoBTot.cgst + twoBTot.sgst;
+      const diffTax = bTax - tTax;
+
+      document.getElementById('badgeBooksCount').textContent = `${store.books.length} docs`;
+      document.getElementById('badge2BCount').textContent = `${store.twoB.length} items`;
+      document.getElementById('badgeEclStatus').textContent = store.eclTransactions.length > 0 ? "Loaded" : "Pending";
+
+      // 1. ITC Overview Card
+      document.getElementById('dashBooksItc').textContent = `₹${fmt(bTax)}`;
+      document.getElementById('dash2BItc').textContent = `₹${fmt(tTax)}`;
+      const diffElem = document.getElementById('dashDiffItc');
+      diffElem.textContent = `₹${fmt(diffTax)}`;
+      diffElem.className = `font-mono font-bold ${Math.abs(diffTax) < 1 ? 'text-emerald-600' : 'text-rose-600'}`;
+
+      document.getElementById('dashTaxBreakup').innerHTML = `
+        <div>IGST Diff: ₹${fmt(booksTot.igst - twoBTot.igst)}</div>
+        <div>CGST Diff: ₹${fmt(booksTot.cgst - twoBTot.cgst)}</div>
+        <div>SGST Diff: ₹${fmt(booksTot.sgst - twoBTot.sgst)}</div>
+      `;
+
+      // 2. Invoices Match Status
+      const res = store.recoResult || { matched: [], booksNotIn2B: [], twoBNotInBooks: [], taxDifference: [] };
+      document.getElementById('countMatched').textContent = res.matched.length;
+      document.getElementById('countBooksNot2B').textContent = res.booksNotIn2B.length;
+      document.getElementById('count2BNotBooks').textContent = res.twoBNotInBooks.length;
+      document.getElementById('countTaxDiff').textContent = res.taxDifference.length;
+
+      // 3. ECL Summary Card (Opening + Credits - Debits = Closing)
+      const ecl = store.eclSummary;
+      document.getElementById('dashEclOpening').textContent = `₹${fmt(ecl.opening)}`;
+      document.getElementById('dashEclCredits').textContent = `₹${fmt(ecl.credits)}`;
+      document.getElementById('dashEclDebits').textContent = `₹${fmt(ecl.debits)}`;
+      document.getElementById('dashEclComputedClosing').textContent = `₹${fmt(ecl.closing)}`;
+      document.getElementById('dashEclPortalClosing').textContent = `₹${fmt(ecl.portalClosing)}`;
+      const eclDiff = ecl.closing - ecl.portalClosing;
+      document.getElementById('dashEclDiff').textContent = `₹${fmt(eclDiff)}`;
+      document.getElementById('dashEclDiffWrapper').className = `border-t border-dashed pt-1 flex justify-between items-center font-bold ${
+        Math.abs(eclDiff) <= 1 ? 'text-emerald-600' : 'text-rose-600'
+      }`;
+
+      // Detailed View Tables
+      renderMatchedTable(res.matched);
+      renderBooksNot2BTable(res.booksNotIn2B);
+      render2BNotBooksTable(res.twoBNotInBooks);
+      renderTaxDiffTable(res.taxDifference);
+      renderCdnTable(store.cdn);
+      renderEclTable(store.eclTransactions);
+    }
+
+    function renderMatchedTable(items) {
+      document.getElementById('badgeMatchedCount').textContent = `${items.length} matched`;
+      const tb = document.getElementById('tableMatchedBody');
+      if (items.length === 0) {
+        tb.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400 font-sans">No matched invoices yet.</td></tr>`;
+        return;
+      }
+      tb.innerHTML = items.map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 px-3 font-semibold text-slate-800">${r.booksInv}</td>
+          <td class="py-2 px-3 font-semibold text-blue-600">${r.twoBInv}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.taxable)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.igst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.cgst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.sgst)}</td>
+          <td class="py-2 px-3 text-center"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-semibold">${r.matchRule}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderBooksNot2BTable(items) {
+      document.getElementById('badgeBooksNot2BCount').textContent = `${items.length} items`;
+      const tb = document.getElementById('tableBooksNot2BBody');
+      if (items.length === 0) {
+        tb.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-slate-400 font-sans">No missing items in 2B.</td></tr>`;
+        return;
+      }
+      tb.innerHTML = items.map((r, idx) => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 px-3 font-semibold text-rose-700">${r.invoiceNo}</td>
+          <td class="py-2 px-3">${r.invoiceDate}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.taxable)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.igst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.cgst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.sgst)}</td>
+          <td class="py-2 px-3 text-center"><span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-medium">${r.ageing}</span></td>
+          <td class="py-2 px-3 text-slate-600 text-[11px] font-sans">${r.remarks}</td>
+        </tr>
+      `).join('');
+    }
+
+    function render2BNotBooksTable(items) {
+      document.getElementById('badge2BNotBooksCount').textContent = `${items.length} items`;
+      const tb = document.getElementById('table2BNotBooksBody');
+      if (items.length === 0) {
+        tb.innerHTML = `<tr><td colspan="9" class="py-6 text-center text-slate-400 font-sans">No unbooked 2B records.</td></tr>`;
+        return;
+      }
+      tb.innerHTML = items.map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 px-3 text-blue-700 font-semibold">${r.gstin}</td>
+          <td class="py-2 px-3 font-sans text-slate-800">${r.name}</td>
+          <td class="py-2 px-3 font-semibold">${r.invoiceNo}</td>
+          <td class="py-2 px-3">${r.invoiceDate}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.taxable)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.igst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.cgst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.sgst)}</td>
+          <td class="py-2 px-3 text-center"><span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px] font-semibold">${r.actionRequired}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderTaxDiffTable(items) {
+      document.getElementById('badgeTaxDiffCount').textContent = `${items.length} items`;
+      const tb = document.getElementById('tableTaxDiffBody');
+      if (items.length === 0) {
+        tb.innerHTML = `<tr><td colspan="10" class="py-6 text-center text-slate-400 font-sans">No tax differences found.</td></tr>`;
+        return;
+      }
+      tb.innerHTML = items.map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 px-3 font-semibold">${r.invoiceNo}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.booksIgst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.twoBIgst)}</td>
+          <td class="py-2 px-3 text-right font-bold text-rose-600">${fmt(r.diffIgst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.booksCgst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.twoBCgst)}</td>
+          <td class="py-2 px-3 text-right font-bold text-rose-600">${fmt(r.diffCgst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.booksSgst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.twoBSgst)}</td>
+          <td class="py-2 px-3 text-right font-bold text-rose-600">${fmt(r.diffSgst)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderCdnTable(cdn) {
+      const allCdn = [...cdn.creditNotes, ...cdn.debitNotes];
+      document.getElementById('badgeCdnTotals').textContent = `CN: ${cdn.creditNotes.length} | DN: ${cdn.debitNotes.length}`;
+      const tb = document.getElementById('tableCdnBody');
+      if (allCdn.length === 0) {
+        tb.innerHTML = `<tr><td colspan="9" class="py-6 text-center text-slate-400 font-sans">No Credit or Debit notes.</td></tr>`;
+        return;
+      }
+      tb.innerHTML = allCdn.map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 px-3 font-sans font-semibold ${r.noteType.includes('Credit') ? 'text-rose-600' : 'text-emerald-600'}">${r.noteType}</td>
+          <td class="py-2 px-3 font-semibold">${r.noteNo}</td>
+          <td class="py-2 px-3">${r.date}</td>
+          <td class="py-2 px-3 text-slate-600">${r.gstin}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.taxable)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.igst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.cgst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.sgst)}</td>
+          <td class="py-2 px-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${r.noteType.includes('Credit') ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">${r.itcImpact}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderEclTable(txs) {
+      const tb = document.getElementById('tableEclBody');
+      if (txs.length === 0) {
+        tb.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-slate-400 font-sans">Upload ECL statement to see ledger records.</td></tr>`;
+        return;
+      }
+      tb.innerHTML = txs.map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 px-3">${r.date}</td>
+          <td class="py-2 px-3 text-slate-600 font-mono">${r.refNo}</td>
+          <td class="py-2 px-3 font-sans text-slate-800">${r.desc}</td>
+          <td class="py-2 px-3 font-semibold ${r.type.toLowerCase().includes('credit') ? 'text-emerald-600' : 'text-rose-600'}">${r.type}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.igst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.cgst)}</td>
+          <td class="py-2 px-3 text-right">${fmt(r.sgst)}</td>
+          <td class="py-2 px-3 text-right font-bold text-slate-900">${fmt(r.total)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderMonthManagement() {
+      const store = getMonthStore(activeGstin, activePeriod);
+      const res = store.recoResult || { booksNotIn2B: [] };
+      document.getElementById('rollInvoicesCount').textContent = `${res.booksNotIn2B.length} items`;
+      document.getElementById('rollEclClosing').textContent = `₹${fmt(store.eclSummary.closing)}`;
+
+      const historyDiv = document.getElementById('monthHistoryList');
+      const allPeriods = Object.keys(DB.entities[activeGstin] || {});
+      historyDiv.innerHTML = allPeriods.map(p => `
+        <span class="px-2.5 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono font-semibold cursor-pointer" onclick="changeActiveMonth('${p}')">
+          <i class="fa-regular fa-calendar-check mr-1"></i> ${p}
+        </span>
+      `).join('');
+      updateStorageMetrics();
+    }
+
+    function executeRollForward() {
+      const nextMonthMap = { '2026-08': '2026-09', '2026-09': '2026-10', '2026-10': '2026-11' };
+      const nextPeriod = nextMonthMap[activePeriod] || '2026-09';
+
+      const currentStore = getMonthStore(activeGstin, activePeriod);
+      const nextStore = getMonthStore(activeGstin, nextPeriod);
+
+      // Carry forward unresolved books invoices
+      if (currentStore.recoResult && currentStore.recoResult.booksNotIn2B) {
+        nextStore.books.push(...currentStore.recoResult.booksNotIn2B.map(b => ({ ...b, ageing: "Carried Forward (30+ Days)" })));
+      }
+
+      // Roll forward closing balance into next month opening
+      nextStore.eclSummary.opening = currentStore.eclSummary.closing;
+
+      saveDB();
+      addAudit("MONTH_ROLLFORWARD", `Month ${activePeriod} closed. ECL Closing rolled into ${nextPeriod} opening.`);
+      alert(`Month ${activePeriod} closed! Rolled forward into ${nextPeriod}.`);
+      changeActiveMonth(nextPeriod);
+    }
+
+    function updateStorageMetrics() {
+      const str = JSON.stringify(DB);
+      const kb = Math.round(str.length / 1024);
+      document.getElementById('dbSizeKb').textContent = `${kb} KB`;
+    }
+
+    function renderAuditLog() {
+      const tb = document.getElementById('tableAuditBody');
+      if (!DB.auditLog || DB.auditLog.length === 0) {
+        tb.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-400 font-sans">No audit events logged yet.</td></tr>`;
+        return;
+      }
+      tb.innerHTML = DB.auditLog.slice(0, 40).map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-1.5 px-3 text-slate-500">${r.time}</td>
+          <td class="py-1.5 px-3 font-semibold text-indigo-700">${r.action}</td>
+          <td class="py-1.5 px-3 text-slate-800">${r.details}</td>
+          <td class="py-1.5 px-3">${r.month}</td>
+          <td class="py-1.5 px-3 text-slate-600">${r.gstin}</td>
+        </tr>
+      `).join('');
+    }
+
+    function clearAuditLog() {
+      if (confirm("Reset system audit logs?")) {
+        DB.auditLog = [];
+        saveDB();
+        renderAuditLog();
+      }
+    }
+
+    // --- FORMULA WORKBOOK EXPORT ---
+    async function generateExcelWorkbook10Sheets() {
+      const store = getMonthStore(activeGstin, activePeriod);
+      const res = store.recoResult || { matched: [], booksNotIn2B: [], twoBNotInBooks: [], taxDifference: [] };
+
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "GSTReco Pro";
+      wb.created = new Date();
+
+      const borderThin = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+      };
+      const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      const subHeaderFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+
+      function styleTableHeaders(ws, cols) {
+        const row = ws.getRow(1);
+        row.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        for (let i = 1; i <= cols; i++) row.getCell(i).fill = subHeaderFill;
+      }
+
+      // Sheet 01 Dashboard
+      const wsDash = wb.addWorksheet("01 Dashboard");
+      wsDash.columns = [{ width: 38 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 22 }];
+      wsDash.mergeCells('A1:E1');
+      wsDash.getCell('A1').value = `GST RECONCILIATION SUMMARY - ${activeGstin} (${activePeriod})`;
+      wsDash.getCell('A1').font = { size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+      wsDash.getCell('A1').fill = headerFill;
+      wsDash.getCell('A1').alignment = { horizontal: 'center' };
+
+      wsDash.addRow(["Particulars", "IGST (₹)", "CGST (₹)", "SGST (₹)", "Total (₹)"]);
+      styleTableHeaders(wsDash, 5);
+
+      const dRows = [
+        ["Total ITC as per Books", "='09 GSTR3B Working'!B6", "='09 GSTR3B Working'!C6", "='09 GSTR3B Working'!D6", "=SUM(B3:D3)"],
+        ["Total ITC as per GSTR-2B", "='09 GSTR3B Working'!B4", "='09 GSTR3B Working'!C4", "='09 GSTR3B Working'!D4", "=SUM(B4:D4)"],
+        ["Difference (Books - 2B)", "=B3-B4", "=C3-C4", "=D3-D4", "=SUM(B5:D5)"],
+        ["ECL Computed Closing Balance", "='08 ECL Working'!B9", "='08 ECL Working'!C9", "='08 ECL Working'!D9", "=SUM(B6:D6)"],
+        ["ECL Portal Actual Closing Balance", "='08 ECL Working'!B10", "='08 ECL Working'!C10", "='08 ECL Working'!D10", "=SUM(B7:D7)"],
+        ["Closing Discrepancy", "=B6-B7", "=C6-C7", "=D6-D7", "=SUM(B8:D8)"]
+      ];
+      dRows.forEach(r => {
+        const added = wsDash.addRow(r);
+        added.eachCell((c, i) => { if (i >= 2) c.numFmt = '#,##0.00;(#,##0.00);"-"'; c.border = borderThin; });
+      });
+
+      // Sheet 02 Matched Invoices
+      const wsMatched = wb.addWorksheet("02 Matched Invoices");
+      wsMatched.columns = [{ width: 22 }, { width: 22 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 25 }];
+      wsMatched.addRow(["Books Inv No", "2B Inv No", "Taxable Value", "IGST", "CGST", "SGST", "Match Rule"]);
+      styleTableHeaders(wsMatched, 7);
+      res.matched.forEach(r => {
+        const row = wsMatched.addRow([r.booksInv, r.twoBInv, r.taxable, r.igst, r.cgst, r.sgst, r.matchRule]);
+        row.eachCell((c, i) => { if (i >= 3 && i <= 6) c.numFmt = '#,##0.00;(#,##0.00);"-"'; c.border = borderThin; });
+      });
+
+      // Sheet 03 Books Not In 2B
+      const wsBooksNot2B = wb.addWorksheet("03 Books Not In 2B");
+      wsBooksNot2B.columns = [{ width: 20 }, { width: 14 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 14 }, { width: 25 }];
+      wsBooksNot2B.addRow(["Invoice No", "Invoice Date", "Taxable Value", "IGST", "CGST", "SGST", "Ageing", "Remarks"]);
+      styleTableHeaders(wsBooksNot2B, 8);
+      res.booksNotIn2B.forEach(r => {
+        const row = wsBooksNot2B.addRow([r.invoiceNo, r.invoiceDate, r.taxable, r.igst, r.cgst, r.sgst, r.ageing, r.remarks]);
+        row.eachCell((c, i) => { if (i >= 3 && i <= 6) c.numFmt = '#,##0.00;(#,##0.00);"-"'; c.border = borderThin; });
+      });
+
+      // Sheet 04 2B Not In Books
+      const ws2BNotBooks = wb.addWorksheet("04 2B Not In Books");
+      ws2BNotBooks.columns = [{ width: 18 }, { width: 25 }, { width: 20 }, { width: 14 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 22 }];
+      ws2BNotBooks.addRow(["Supplier GSTIN", "Supplier Name", "Invoice No", "Invoice Date", "Taxable Value", "IGST", "CGST", "SGST", "Action Required"]);
+      styleTableHeaders(ws2BNotBooks, 9);
+      res.twoBNotInBooks.forEach(r => {
+        const row = ws2BNotBooks.addRow([r.gstin, r.name, r.invoiceNo, r.invoiceDate, r.taxable, r.igst, r.cgst, r.sgst, r.actionRequired]);
+        row.eachCell((c, i) => { if (i >= 5 && i <= 8) c.numFmt = '#,##0.00;(#,##0.00);"-"'; c.border = borderThin; });
+      });
+
+      // Sheet 05 Tax Difference
+      const wsTaxDiff = wb.addWorksheet("05 Tax Difference");
+      wsTaxDiff.columns = [{ width: 20 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }];
+      wsTaxDiff.addRow(["Invoice No", "Books IGST", "2B IGST", "Diff IGST", "Books CGST", "2B CGST", "Diff CGST", "Books SGST", "2B SGST", "Diff SGST"]);
+      styleTableHeaders(wsTaxDiff, 10);
+      res.taxDifference.forEach(r => {
+        const row = wsTaxDiff.addRow([r.invoiceNo, r.booksIgst, r.twoBIgst, r.diffIgst, r.booksCgst, r.twoBCgst, r.diffCgst, r.booksSgst, r.twoBSgst, r.diffSgst]);
+        row.eachCell((c, i) => { if (i >= 2) c.numFmt = '#,##0.00;(#,##0.00);"-"'; c.border = borderThin; });
+      });
+
+      // Sheet 08 ECL Working
+      const wsECL = wb.addWorksheet("08 ECL Working");
+      wsECL.columns = [{ width: 35 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 20 }];
+      wsECL.addRow(["ECL Statutory Row", "IGST (₹)", "CGST (₹)", "SGST (₹)", "Total (₹)"]);
+      styleTableHeaders(wsECL, 5);
+      const eclRows = [
+        ["Opening Balance (Portal)", store.eclSummary.opening, 0, 0, "=SUM(B2:D2)"],
+        ["+ Month Credits (Availed in 3B)", store.eclSummary.credits, 0, 0, "=SUM(B3:D3)"],
+        ["- Month Debits (Utilized for Tax)", store.eclSummary.debits, 0, 0, "=SUM(B4:D4)"],
+        ["Computed Closing Balance", "=B2+B3-B4", "=C2+C3-C4", "=D2+D3-D4", "=SUM(B5:D5)"],
+        ["Actual Portal Closing Balance", store.eclSummary.portalClosing, 0, 0, "=SUM(B6:D6)"],
+        ["Discrepancy (Computed - Portal)", "=B5-B6", "=C5-C6", "=D5-D6", "=SUM(B7:D7)"]
+      ];
+      eclRows.forEach(r => {
+        const row = wsECL.addRow(r);
+        row.eachCell((c, i) => { if (i >= 2) c.numFmt = '#,##0.00;(#,##0.00);"-"'; c.border = borderThin; });
+      });
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `GST_Reconciliation_${activeGstin}_${activePeriod}_10Sheets.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      addAudit("EXCEL_EXPORT", "Exported 10-Sheet comprehensive reconciliation workbook");
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initDashboard();
+    });
+  </script>
+</body>
+</html>
